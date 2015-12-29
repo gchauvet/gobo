@@ -1,0 +1,3 @@
+[submodule "library/free_elks"]
+	path = library/free_elks
+	url = https://github.com/EiffelSoftware/FreeELKS.git
