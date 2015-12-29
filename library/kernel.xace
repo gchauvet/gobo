@@ -11,7 +11,7 @@
 	</description>
 
 	<cluster name="ge" location="${GOBO}/library" if="${GOBO_EIFFEL}=ge">
-		<mount location="${GOBO}/library/free_elks/library.xace"/>
+		<mount location="${GOBO}/library/elks/library.xace"/>
 	</cluster>
 
 	<cluster name="ise" location="${ISE_LIBRARY}/library" if="${GOBO_EIFFEL}=ise">
