@@ -1,6 +1,7 @@
 # Spec file for Gobo Eiffel - Compatible with OpenMandriva, Fedora, RHEL
 # Dynamic version from git: can be overridden with --define "version YY.MM.DD"
-# On OpenMandriva: sudo dnf install rpm-build && pwsh .cicd/build_rpm.ps1 <citool>
+# On OpenMandriva: uses Clang (preferred compiler), other distributions use GCC
+# Build: sudo dnf install rpm-build && pwsh .cicd/build_rpm.ps1 <citool>
 %{!?version: %global version %(git show -s --date=format:'%y.%m.%d' --format=%cd 2>/dev/null || echo "26.02.01")}
 %{!?commit: %global commit %(git rev-parse --short HEAD 2>/dev/null || echo "snapshot")}
 
@@ -14,7 +15,14 @@ URL:            https://www.gobosoft.com/
 # Source from GitHub - the pipeline already clones the repo so Source0 is optional
 Source0:        https://github.com/gobo-eiffel/gobo/archive/%{commit}.tar.gz#/%{name}-%{version}.tar.gz
 
+# OpenMandriva prefers Clang, other distributions use GCC
+%if 0%{?is_openmandriva}
+BuildRequires:  clang
+Requires:       clang
+%else
 BuildRequires:  gcc
+Requires:       gcc
+%endif
 BuildRequires:  make
 # OpenMandriva uses lib64gc-devel on x86_64, pkgconfig(bdw-gc) works everywhere
 BuildRequires:  pkgconfig(bdw-gc)
@@ -22,9 +30,6 @@ BuildRequires:  pkgconfig(bdw-gc)
 BuildRequires:  bash
 BuildRequires:  coreutils
 BuildRequires:  sed
-
-# Runtime dependencies
-Requires:       gcc
 # On OpenMandriva, use lib64gc or gc depending on architecture
 %if 0%{?is_openmandriva}
 %ifarch x86_64 aarch64
@@ -97,9 +102,14 @@ export PATH=$GOBO/bin:$PATH
 export GOBO_CLI_GC=no
 export GOBO_CLI_THREAD=0
 
-# Bootstrap and build with GCC (like the linux_gcc_build_ge pipeline)
+# Bootstrap and build
+# OpenMandriva uses Clang (preferred compiler), others use GCC
 chmod +x bin/install.sh
+%if 0%{?is_openmandriva}
+./bin/install.sh clang
+%else
 ./bin/install.sh gcc
+%endif
 
 # Verify that gec works
 bin/gec --version --verbose
@@ -183,6 +193,7 @@ chmod 644 %{buildroot}%{_sysconfdir}/profile.d/gobo.sh
 - Dynamic versioning based on git (YY.MM.DD+commit)
 - Integration with GitHub Actions and GitLab CI
 - Spec file optimized for pipeline build
-- OpenMandriva compatibility (lib64gc support)
+- OpenMandriva compatibility (lib64gc support, Clang compiler)
+- Uses Clang on OpenMandriva (preferred compiler), GCC on other distributions
 - Includes all GOBO Eiffel libraries and tools
 - Added support for GOBO environment variables
