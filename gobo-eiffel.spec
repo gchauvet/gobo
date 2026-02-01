@@ -1,9 +1,12 @@
 # Spec file for Gobo Eiffel - Compatible with OpenMandriva, Fedora, RHEL
 # Dynamic version from git: can be overridden with --define "version YY.MM.DD"
 # On OpenMandriva: uses Clang (preferred compiler), other distributions use GCC
-# Build: sudo dnf install rpm-build && pwsh .cicd/build_rpm.ps1 <citool>
+# Build: sudo dnf install rpm-build && ./.cicd/build_rpm.sh
 %{!?version: %global version %(git show -s --date=format:'%y.%m.%d' --format=%cd 2>/dev/null || echo "26.02.01")}
 %{!?commit: %global commit %(git rev-parse --short HEAD 2>/dev/null || echo "snapshot")}
+
+# Disable debug packages (no debug sources in Eiffel compiled code)
+%global debug_package %{nil}
 
 Name:           gobo-eiffel
 Version:        %{version}
@@ -19,13 +22,19 @@ Source0:        https://github.com/gobo-eiffel/gobo/archive/%{commit}.tar.gz#/%{
 %if 0%{?is_openmandriva}
 BuildRequires:  clang
 Requires:       clang
+# OpenMandriva uses lib64gc-devel on x86_64
+%ifarch x86_64 aarch64
+BuildRequires:  lib64gc-devel
+%else
+BuildRequires:  gc-devel
+%endif
 %else
 BuildRequires:  gcc
 Requires:       gcc
+# Other distributions can use pkgconfig
+BuildRequires:  pkgconfig(bdw-gc)
 %endif
 BuildRequires:  make
-# OpenMandriva uses lib64gc-devel on x86_64, pkgconfig(bdw-gc) works everywhere
-BuildRequires:  pkgconfig(bdw-gc)
 # Required for Gobo bootstrap
 BuildRequires:  bash
 BuildRequires:  coreutils
@@ -79,8 +88,8 @@ Group:          Development/Eiffel
 Requires:       %{name} = %{version}-%{release}
 
 %description devel
-This package contains the header files and libraries needed to
-develop applications using GOBO Eiffel libraries.
+This package contains the Eiffel library sources and configuration files
+needed to develop applications using GOBO Eiffel libraries.
 
 %package doc
 Summary:        Documentation for GOBO Eiffel
@@ -119,7 +128,6 @@ bin/gec --version --verbose
 install -d %{buildroot}%{_bindir}
 install -d %{buildroot}%{_includedir}/gobo
 install -d %{buildroot}%{_libdir}/gobo
-install -d %{buildroot}%{_datadir}/gobo
 install -d %{buildroot}%{_docdir}/%{name}
 
 # Install binaries directly in /usr/bin (like gcc, make, etc.)
@@ -145,12 +153,15 @@ find library -name "*.ecf" -exec install -D -m 644 {} %{buildroot}%{_libdir}/gob
 # Install tools source for development (in /usr/lib/gobo for runtime resources)
 cp -a tool %{buildroot}%{_libdir}/gobo/
 
-# Install documentation
-cp -a doc/* %{buildroot}%{_docdir}/%{name}/
+# Install documentation files
+install -m 644 History.md %{buildroot}%{_docdir}/%{name}/
+install -m 644 Release_notes.md %{buildroot}%{_docdir}/%{name}/
+# HTML versions if they exist
+[ -f History.html ] && install -m 644 History.html %{buildroot}%{_docdir}/%{name}/
+[ -f index.html ] && install -m 644 index.html %{buildroot}%{_docdir}/%{name}/
 
-# Install examples in /usr/share/gobo/examples
-install -d %{buildroot}%{_datadir}/gobo/examples
-cp -a example/* %{buildroot}%{_datadir}/gobo/examples/
+# Note: There's no example/ directory in the repository
+# Examples would need to be created separately if needed
 
 # Create environment setup script
 install -d %{buildroot}%{_sysconfdir}/profile.d
@@ -182,13 +193,12 @@ chmod 644 %{buildroot}%{_sysconfdir}/profile.d/gobo.sh
 %files devel
 %{_includedir}/gobo/
 %{_libdir}/gobo/library/
-%{_datadir}/gobo/examples/
 
 %files doc
 %{_docdir}/%{name}/
 
 %changelog
-* Sat Feb 01 2026 Gobo CI/CD Pipeline <gobo-eiffel@github.com> - %{version}-1.%{commit}
+* Sat Jan 25 2025 Gobo CI/CD Pipeline <gobo-eiffel@github.com> - 26.02.01-1
 - Version built automatically by CI/CD pipeline
 - Dynamic versioning based on git (YY.MM.DD+commit)
 - Integration with GitHub Actions and GitLab CI
