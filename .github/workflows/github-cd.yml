@@ -102,9 +102,75 @@ jobs:
           retention-days: 1
 
 #
+# Build RPM packages for distribution.
+#
+
+  linux_x86_64_rpm_build:
+    if: ${{ github.repository == 'gobo-eiffel/gobo' }}
+    needs: linux_x86_64_build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for git describe and version
+      - uses: actions/download-artifact@v4
+        with:
+          name: gobo_delivery_linux_x86_64
+          path: .
+      - name: Install RPM build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm rpm-build
+        shell: bash
+      - name: Build RPM package
+        run: pwsh -f "$env:GITHUB_WORKSPACE/.cicd/build_rpm.ps1" github
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gobo_rpm_linux_x86_64
+          path: ~/rpmbuild/RPMS/**/*.rpm
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gobo_srpm_linux_x86_64
+          path: ~/rpmbuild/SRPMS/*.src.rpm
+          retention-days: 30
+
+  linux_arm64_rpm_build:
+    if: ${{ github.repository == 'gobo-eiffel/gobo' }}
+    needs: linux_arm64_build
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: gobo_delivery_linux_arm64
+          path: .
+      - name: Install RPM build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm rpm-build
+        shell: bash
+      - name: Build RPM package
+        run: pwsh -f "$env:GITHUB_WORKSPACE/.cicd/build_rpm.ps1" github
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gobo_rpm_linux_arm64
+          path: ~/rpmbuild/RPMS/**/*.rpm
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gobo_srpm_linux_arm64
+          path: ~/rpmbuild/SRPMS/*.src.rpm
+          retention-days: 30
+
+#
 # Run tests.
 #
-  
+
   linux_x86_64_test:
     runs-on: ubuntu-latest
     needs: linux_x86_64_build
@@ -248,7 +314,7 @@ jobs:
 
   all_publish:
     runs-on: ubuntu-latest
-    needs: [linux_x86_64_test, linux_arm64_test, macos_x86_64_test, macos_arm64_test, windows_x86_64_test, windows_arm64_test]
+    needs: [linux_x86_64_test, linux_arm64_test, macos_x86_64_test, macos_arm64_test, windows_x86_64_test, windows_arm64_test, linux_x86_64_rpm_build, linux_arm64_rpm_build]
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -274,10 +340,28 @@ jobs:
         with:
           name: gobo_delivery_windows_arm64
           path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: gobo_rpm_linux_x86_64
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: gobo_rpm_linux_arm64
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: gobo_srpm_linux_x86_64
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: gobo_srpm_linux_arm64
+          path: .
       - name: publish
         uses: pyTooling/Actions/releaser/composite@v1.0.5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          files: gobo-*
+          files: |
+            gobo-*
+            *.rpm
           tag: nightly
           rm: true

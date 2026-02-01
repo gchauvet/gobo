@@ -86,6 +86,43 @@ windows_zig_build_ge:
       - $GOBO/tool/gec/backend/c/config/default.cfg
 
 #
+# Build RPM packages.
+#
+
+build_rpm:
+  stage: build_ge
+  dependencies: []
+  script:
+    - Write-Host "Just to define the 'build_rpm' stage name"
+  rules:
+    - when: never
+
+linux_gcc_build_rpm:
+  stage: build_ge
+  tags:
+    - saas-linux-small-amd64
+  image:
+    name: "mcr.microsoft.com/powershell:latest"
+  dependencies:
+    - linux_gcc_build_ge
+  script:
+    - apt-get update && apt-get install -y rpm git
+    - pwsh -f "$GOBO/.cicd/build_rpm.ps1" gitlab
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $GOBO_CUSTOM_PIPELINE == null || $GOBO_CUSTOM_PIPELINE == "linux_build_rpm"
+      when: on_success
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - ~/rpmbuild/RPMS/**/*.rpm
+      - ~/rpmbuild/SRPMS/*.src.rpm
+
+#
 # Running tests with Gobo Eiffel.
 #
 
